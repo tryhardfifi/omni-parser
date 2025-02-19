@@ -84,6 +84,13 @@ class BoxAnnotator:
             )
             ```
         """
+        # Ensure we're working with RGB for drawing
+        is_rgba = scene.shape[-1] == 4
+        if is_rgba:
+            # Store alpha channel
+            alpha_channel = scene[:, :, 3]
+            scene = scene[:, :, :3]
+
         font = cv2.FONT_HERSHEY_SIMPLEX
         for i in range(len(detections)):
             x1, y1, x2, y2 = detections.xyxy[i].astype(int)
@@ -131,16 +138,18 @@ class BoxAnnotator:
             else:
                 text_x, text_y, text_background_x1, text_background_y1, text_background_x2, text_background_y2 = get_optimal_label_pos(self.text_padding, text_width, text_height, x1, y1, x2, y2, detections, image_size)
 
+            box_color = color.as_rgb()
+            luminance = 0.299 * box_color[0] + 0.587 * box_color[1] + 0.114 * box_color[2]
+            text_color = (0,0,0) if luminance > 160 else (255,255,255)
+            
+            # Draw the text background and text
             cv2.rectangle(
                 img=scene,
                 pt1=(text_background_x1, text_background_y1),
                 pt2=(text_background_x2, text_background_y2),
-                color=color.as_rgb(),
+                color=box_color,
                 thickness=cv2.FILLED,
             )
-            box_color = color.as_rgb()
-            luminance = 0.299 * box_color[0] + 0.587 * box_color[1] + 0.114 * box_color[2]
-            text_color = (0,0,0) if luminance > 160 else (255,255,255)
             cv2.putText(
                 img=scene,
                 text=text,
@@ -151,7 +160,14 @@ class BoxAnnotator:
                 thickness=self.text_thickness,
                 lineType=cv2.LINE_AA,
             )
-        return scene
+
+        # Restore alpha channel if needed
+        if is_rgba:
+            result = np.dstack((scene, alpha_channel))
+        else:
+            result = scene
+
+        return result
     
 
 def box_area(box):

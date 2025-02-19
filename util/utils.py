@@ -436,23 +436,21 @@ def get_som_labeled_img(image_source: Union[str, Image.Image], model=None, BOX_T
     if isinstance(image_source, str):
         image_source = Image.open(image_source)
     
-    # Add logging for input image
-    print(f"Input image mode: {image_source.mode}")
-    sample_pixel = image_source.getpixel((0, 0))
-    print(f"Sample input pixel (top-left): {sample_pixel}")
+    # Convert RGBA to RGB while preserving alpha
+    alpha = None
+    if image_source.mode == 'RGBA':
+        # Split alpha channel
+        alpha = image_source.split()[3]
+        image_source = image_source.convert('RGB')
     
     w, h = image_source.size
     if not imgsz:
         imgsz = (h, w)
-    # print('image size:', w, h)
+
+    image_source = np.asarray(image_source)
+
     xyxy, logits, phrases = predict_yolo(model=model, image=image_source, box_threshold=BOX_TRESHOLD, imgsz=imgsz, scale_img=scale_img, iou_threshold=0.1)
     xyxy = xyxy / torch.Tensor([w, h, w, h]).to(xyxy.device)
-    
-    # Log image info before numpy conversion
-    print("Converting PIL Image to numpy array...")
-    image_source = np.asarray(image_source)
-    print(f"Numpy array shape after conversion: {image_source.shape}")
-    print(f"Sample numpy pixel (top-left): {image_source[0,0]}")
     
     phrases = [str(i) for i in range(len(phrases))]
 
@@ -510,15 +508,15 @@ def get_som_labeled_img(image_source: Union[str, Image.Image], model=None, BOX_T
     else:
         annotated_frame, label_coordinates = annotate(image_source=image_source, boxes=filtered_boxes, logits=logits, phrases=phrases, text_scale=text_scale, text_padding=text_padding)
     
-    # Before final conversion
-    print(f"Annotated frame shape before PIL conversion: {annotated_frame.shape}")
-    print(f"Sample annotated pixel before PIL conversion (top-left): {annotated_frame[0,0]}")
-    
-    # Convert directly to PIL without BGR->RGB conversion since it's already in RGB
+    # Convert back to PIL and restore alpha if needed
     pil_img = Image.fromarray(annotated_frame)
-    print(f"Final PIL image mode: {pil_img.mode}")
-    print(f"Sample final pixel (top-left): {pil_img.getpixel((0, 0))}")
-    
+    if alpha is not None:
+        # Convert back to RGBA and restore alpha channel
+        pil_img = pil_img.convert('RGBA')
+        # Create a new image with the original alpha channel
+        r, g, b, _ = pil_img.split()
+        pil_img = Image.merge('RGBA', (r, g, b, alpha))
+
     buffered = io.BytesIO()
     pil_img.save(buffered, format="PNG")
     encoded_image = base64.b64encode(buffered.getvalue()).decode('ascii')
