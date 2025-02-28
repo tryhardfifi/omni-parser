@@ -19,35 +19,34 @@ class Output(BaseModel):
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
-        """Load the model into memory to make running multiple predictions efficient"""
-        # make folder checkpoints
-        # os.makedirs(MODEL_CACHE, exist_ok=True)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-        # download the weights if not exists
-        # if not os.path.exists(MODEL_CACHE+"/OmniParser-v2.0"):
-        #     print("Downloading OmniParser-v2.0")
-        #     snapshot_download(
-        #         repo_id="microsoft/OmniParser-v2.0",
-        #         local_dir=MODEL_CACHE+"/OmniParser-v2.0",
-        #         local_dir_use_symlinks=False
-        #     )
 
-        # if not os.path.exists(MODEL_CACHE+"/Florence-2-base"):
-        #     print("Downloading Florence-2-base")
-        #     snapshot_download(
-        #         repo_id="microsoft/Florence-2-base",
-        #         local_dir=MODEL_CACHE+"/Florence-2-base",
-        #         local_dir_use_symlinks=False
-        #     )
-        
-        # Fix paths to use MODEL_CACHE instead of checkpoints
+        # Ensure the weights directory exists
+        os.makedirs(MODEL_CACHE, exist_ok=True)
+
+        # Download OmniParser-v2.0
+        snapshot_download(
+            repo_id="microsoft/OmniParser-v2.0",
+            local_dir=os.path.join(MODEL_CACHE, "OmniParser-v2.0"),
+            local_dir_use_symlinks=False
+        )
+
+        # Download Florence-2-base (if needed)
+        snapshot_download(
+            repo_id="microsoft/Florence-2-base",
+            local_dir=os.path.join(MODEL_CACHE, "Florence-2-base"),
+            local_dir_use_symlinks=False
+        )
+
         self.yolo_model = get_yolo_model(model_path=os.path.join(MODEL_CACHE, 'OmniParser-v2.0/icon_detect/model.pt'))
+
         self.caption_model_processor = get_caption_model_processor(
-            model_name="florence2", 
+            model_name="florence2",
             model_name_or_path=os.path.join(MODEL_CACHE, 'OmniParser-v2.0/icon_caption')
         )
+
         print("Finished setup")
+
 
 
     @torch.inference_mode()

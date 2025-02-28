@@ -2,8 +2,11 @@ build:
   gpu: true
   cuda: "12.1"
   python_version: "3.12"
+  system_packages:
+    - libgl1-mesa-glx
+    - libglib2.0-0
   python_packages:
-    - "torch==2.4"
+    - "torch"
     - "torchvision==0.19.1"
     - "easyocr==1.7.1"
     - "supervision==0.18.0"
